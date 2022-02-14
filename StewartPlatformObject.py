@@ -206,6 +206,7 @@ class StewartPlatform:
         C5P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C5)
         C6P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C6)
 
+        # ~ Add performance improvements to this code
         # Compute the actuator heights
         A1Z, A2Z, A3Z, A4Z, A5Z, A6Z = symbols("A1Z A2Z A3Z A4Z A5Z A6Z")
 
