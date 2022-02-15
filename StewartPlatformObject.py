@@ -206,31 +206,44 @@ class StewartPlatform:
         C5P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C5)
         C6P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C6)
 
-        # ~ Add performance improvements to this code
-        # Compute the actuator heights
-        A1Z, A2Z, A3Z, A4Z, A5Z, A6Z = symbols("A1Z A2Z A3Z A4Z A5Z A6Z")
+        try:
+            A1Zp = C1P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A1B[0] - C1P[0]), 2) - np.power((self.A1B[1] - C1P[1]), 2))
+            A1Zn = C1P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A1B[0] - C1P[0]), 2) - np.power((self.A1B[1] - C1P[1]), 2))
 
-        A1Z_sol = solve(Eq((self.A1B[0] - C1P[0])**2 + (self.A1B[1] - C1P[1])**2 + (A1Z - C1P[2])**2, (self.ArmLen)**2))
-        A2Z_sol = solve(Eq((self.A2B[0] - C2P[0])**2 + (self.A2B[1] - C2P[1])**2 + (A2Z - C2P[2])**2, (self.ArmLen)**2))
-        A3Z_sol = solve(Eq((self.A3B[0] - C3P[0])**2 + (self.A3B[1] - C3P[1])**2 + (A3Z - C3P[2])**2, (self.ArmLen)**2))
-        A4Z_sol = solve(Eq((self.A4B[0] - C4P[0])**2 + (self.A4B[1] - C4P[1])**2 + (A4Z - C4P[2])**2, (self.ArmLen)**2))
-        A5Z_sol = solve(Eq((self.A5B[0] - C5P[0])**2 + (self.A5B[1] - C5P[1])**2 + (A5Z - C5P[2])**2, (self.ArmLen)**2))
-        A6Z_sol = solve(Eq((self.A6B[0] - C6P[0])**2 + (self.A6B[1] - C6P[1])**2 + (A6Z - C6P[2])**2, (self.ArmLen)**2))
+            A2Zp = C2P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A2B[0] - C2P[0]), 2) - np.power((self.A2B[1] - C2P[1]), 2))
+            A2Zn = C2P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A2B[0] - C2P[0]), 2) - np.power((self.A2B[1] - C2P[1]), 2))
 
-        solutions = [A1Z_sol, A2Z_sol, A3Z_sol, A4Z_sol, A5Z_sol, A6Z_sol]
-        output = []
+            A3Zp = C3P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A3B[0] - C3P[0]), 2) - np.power((self.A3B[1] - C3P[1]), 2))
+            A3Zn = C3P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A3B[0] - C3P[0]), 2) - np.power((self.A3B[1] - C3P[1]), 2))
 
-        # Return false if the solutions are complex, or return the postive solution
+            A4Zp = C4P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A4B[0] - C4P[0]), 2) - np.power((self.A4B[1] - C4P[1]), 2))
+            A4Zn = C4P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A4B[0] - C4P[0]), 2) - np.power((self.A4B[1] - C4P[1]), 2))
+
+            A5Zp = C5P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A5B[0] - C5P[0]), 2) - np.power((self.A5B[1] - C5P[1]), 2))
+            A5Zn = C5P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A5B[0] - C5P[0]), 2) - np.power((self.A5B[1] - C5P[1]), 2))
+
+            A6Zp = C6P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A6B[0] - C6P[0]), 2) - np.power((self.A6B[1] - C6P[1]), 2))
+            A6Zn = C6P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A6B[0] - C6P[0]), 2) - np.power((self.A6B[1] - C6P[1]), 2))
+
+            solutions = [   [A1Zp, A1Zn],
+                            [A2Zp, A2Zn],
+                            [A3Zp, A3Zn],
+                            [A4Zp, A4Zn],
+                            [A5Zp, A5Zn],
+                            [A6Zp, A6Zn]
+                            ]
+
+        except:
+            return (None, None)
+
         prevActs = [self.A1C, self.A2C, self.A3C, self.A4C, self.A5C, self.A6C]
+        output = []
         for actNum, solution in enumerate(solutions):
-            if (not solution[0].is_real) or (not solution[1].is_real):
-                return (None, None)
+           # Use the solution whos distance was closest to the previous
+            if (np.abs(solution[0] - prevActs[actNum][2]) <= np.abs(solution[1] - prevActs[actNum][2])):
+                output.append(solution[0])
             else:
-                # Use the solution whos distance was closest to the previous
-                if (np.abs(solution[0] - prevActs[actNum][2]) <= np.abs(solution[1] - prevActs[actNum][2])):
-                    output.append(solution[0])
-                else:
-                    output.append(solution[0])
+                output.append(solution[0])
 
         # Return the actuator positions and the platform joint positions
         return (tuple(output), (C1P, C2P, C3P, C4P, C5P, C6P))
