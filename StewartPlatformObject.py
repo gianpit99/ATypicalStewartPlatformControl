@@ -215,12 +215,14 @@ class StewartPlatform:
         NewPlatformPosition = EndEffectorPosition - Quaternion(EndEffectorQuaternion).rotate(self.EndEffectorPositionOffset)
 
         # Compute the joint positions on the platform
+        # ~ Check if this should be subtract
         C1P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C1)
         C2P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C2)
         C3P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C3)
         C4P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C4)
         C5P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C5)
         C6P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C6)
+
 
         try:
             A1Zp = C1P[2] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A1B[0] - C1P[0]), 2) - np.power((self.A1B[1] - C1P[1]), 2))
@@ -255,6 +257,7 @@ class StewartPlatform:
 
         prevActs = [self.A1C, self.A2C, self.A3C, self.A4C, self.A5C, self.A6C]
         output = []
+
         for actNum, solution in enumerate(solutions):
            # Use the solution whos distance was closest to the previous
             if (np.abs(solution[0] - prevActs[actNum][2]) <= np.abs(solution[1] - prevActs[actNum][2])):
@@ -370,6 +373,7 @@ class StewartPlatform:
         # Scale the discretization according to max step size
         NumberOfPositions = 10
         MaxActuatorDisplacement = 1.5 * self.MaxStepSize
+
         while MaxActuatorDisplacement > self.MaxStepSize:
             percentages = np.linspace(0, 1, NumberOfPositions, dtype=np.float64)
 
@@ -415,6 +419,7 @@ class StewartPlatform:
 
         # Assign time for each movement according to max speed
         MaxTimeStep = MaxActuatorDisplacement / self.MaxActuatorSpeed
+
         times = np.linspace(0, float(NumberOfPositions*MaxTimeStep), NumberOfPositions)
 
         # Return the end
@@ -624,6 +629,19 @@ class StewartPlatform:
         return
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 def main():
     BaseAngleOffset = 76.4/2                                ##Actuator Angle Offset [deg]
     BaseRadius = 269.26 / 2 * 10**-3                        ##Actuator Base Radius [m]
@@ -646,63 +664,41 @@ def main():
     mechanism.MaxStepSize = 0.01
     mechanism.MaxActuatorSpeed = 0.013368421052538 * 300
 
-
-    #mechanism.plotCurrentPosition()
-
+    # Preview the motion
     preview = True
-    actuate = True
 
+    # Send the motion signals to the actuators
+    actuate = False
 
-    d = 0.04
-    h2 = 0.7
-    h1 = 0.6
+    # The half length of the square
+    d = 0.06
+
+    # The height of the square demo
+    h1 = h2 = 2
+
+    # Plan the required trajectories for the demo
     t1 = mechanism.planTrajectory([-d, d, h1], [1, 0, 0, 0])
     t2 = mechanism.planTrajectoryBetweenPoints([-d, d, h1], [1, 0, 0, 0], [d, d, h2], [1, 0, 0, 0])
     t3 = mechanism.planTrajectoryBetweenPoints([d, d, h2], [1, 0, 0, 0], [d, -d, h1], [1, 0, 0, 0])
     t4 = mechanism.planTrajectoryBetweenPoints([d, -d, h1], [1, 0, 0, 0], [-d, -d, h2], [1, 0, 0, 0])
     t5 = mechanism.planTrajectoryBetweenPoints([-d, -d, h2], [1, 0, 0, 0], [-d, d, h1], [1, 0, 0, 0])
 
-    mechanism.topHome()
-    time.sleep(5)
 
+    # Move from home to one corner of the square
     mechanism.executeTrajectory(t1, show=preview, actuate=actuate)
-    time.sleep(3)
-    while True:
-        mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
-        time.sleep(3)
-        mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
-        time.sleep(3)
-        mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
-        time.sleep(3)
-        mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
-        time.sleep(3)
 
-    #mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
-    #time.sleep(3)
-    #mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
-    #time.sleep(3)
-    #mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
-    #time.sleep(3)
-    #mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
-    #time.sleep(3)
-    #mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
-    #time.sleep(3)
-    mechanism.topHome()
-    time.sleep(5)
-    #time.sleep(1)
-    #mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
-    #time.sleep(1)
-    #mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
-    #time.sleep(1)
-    #mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
-    #time.sleep(1)
-    #mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
-    #time.sleep(1)
-    #mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
-    #time.sleep(1)
-    #mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
-    #time.sleep(1)
-    #mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
+    # Move in a square
+    mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
+    mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
+    mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
+    mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
+
+    # Move in a square again
+    mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
+    mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
+    mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
+    mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
+
 
 
 
