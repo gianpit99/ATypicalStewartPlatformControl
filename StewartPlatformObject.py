@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 from sympy import *
 from pyquaternion import Quaternion
-
+import time
+import serial
 
 class StewartPlatform:
     def __init__(   self,
@@ -95,6 +96,18 @@ class StewartPlatform:
         #The home height
         self.HomeHeight = None
 
+
+        try:
+            SerialRate = 115200
+            self.ser1 = serial.Serial('/dev/cu.usbmodem11103', SerialRate, timeout=1)
+            self.ser2 = serial.Serial('/dev/cu.usbmodem11303', SerialRate, timeout=1)
+            self.ser3 = serial.Serial('/dev/cu.usbmodem114303', SerialRate, timeout=1)
+            self.ser4 = serial.Serial('/dev/cu.usbmodem114403', SerialRate, timeout=1)
+            self.ser5 = serial.Serial('/dev/cu.usbmodem114203', SerialRate, timeout=1)
+            self.ser6 = serial.Serial('/dev/cu.usbmodem11203', SerialRate, timeout=1)
+        except Exception as e:
+            print(e)
+
         # Setup the Stewart Platform
         self.setup()
 
@@ -148,28 +161,31 @@ class StewartPlatform:
         self.C6P = np.array([self.PlatformRadius * np.cos(self.C6P_Angle * self.D2R),self.PlatformRadius * np.sin(self.C6P_Angle * self.D2R),np.nan], dtype=np.float64)
 
 
-        # Find the initial height of the platform if it is in its symetric position
-        platZ = symbols('platZ')
+        if False:
+            # Find the initial height of the platform if it is in its symetric position
+            platZ = symbols('platZ')
 
-        # Each of these solutions will produce the same result
-        EQ1 = Eq(((self.A1B[0] - self.C1P[0]) ** 2 + (self.A1B[1] - self.C1P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
-        #EQ2 = Eq(((self.A2B[0] - self.C2P[0]) ** 2 + (self.A2B[1] - self.C2P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
-        #EQ3 = Eq(((self.A3B[0] - self.C3P[0]) ** 2 + (self.A3B[1] - self.C3P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
-        #EQ4 = Eq(((self.A4B[0] - self.C4P[0]) ** 2 + (self.A4B[1] - self.C4P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
-        #EQ5 = Eq(((self.A5B[0] - self.C5P[0]) ** 2 + (self.A5B[1] - self.C5P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
-        #EQ6 = Eq(((self.A6B[0] - self.C6P[0]) ** 2 + (self.A6B[1] - self.C6P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
+            # Each of these solutions will produce the same result
+            EQ1 = Eq(((self.A1B[0] - self.C1P[0]) ** 2 + (self.A1B[1] - self.C1P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
+            #EQ2 = Eq(((self.A2B[0] - self.C2P[0]) ** 2 + (self.A2B[1] - self.C2P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
+            #EQ3 = Eq(((self.A3B[0] - self.C3P[0]) ** 2 + (self.A3B[1] - self.C3P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
+            #EQ4 = Eq(((self.A4B[0] - self.C4P[0]) ** 2 + (self.A4B[1] - self.C4P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
+            #EQ5 = Eq(((self.A5B[0] - self.C5P[0]) ** 2 + (self.A5B[1] - self.C5P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
+            #EQ6 = Eq(((self.A6B[0] - self.C6P[0]) ** 2 + (self.A6B[1] - self.C6P[1]) ** 2 + (0 - platZ) ** 2), ((self.ArmLen) ** 2))
 
-        # Solve the equation for the initial conditions
-        platZ_sol = solve(EQ1)
+            # Solve the equation for the initial conditions
+            platZ_sol = solve(EQ1)
 
-        # There should only be two solutions, take the positive one
-        if (len(platZ_sol) == 1):
-            PlatformHeight = float(platZ_sol[0])
-        else:
-            if platZ_sol[0] >= platZ_sol[1]:
-                PlatformHeight = platZ_sol[0]
+            # There should only be two solutions, take the positive one
+            if (len(platZ_sol) == 1):
+                PlatformHeight = float(platZ_sol[0])
             else:
-                PlatformHeight = platZ_sol[1]
+                if platZ_sol[0] >= platZ_sol[1]:
+                    PlatformHeight = platZ_sol[0]
+                else:
+                    PlatformHeight = platZ_sol[1]
+
+        PlatformHeight = sqrt(self.ArmLen**2 - (self.A1B[0] - self.C1P[0])**2 - (self.A1B[1] - self.C1P[1])**2)
 
         # Update the previously unknown heights
         self.C1P[2] = PlatformHeight
@@ -207,23 +223,23 @@ class StewartPlatform:
         C6P = NewPlatformPosition + Quaternion(EndEffectorQuaternion).rotate(self.C6)
 
         try:
-            A1Zp = C1P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A1B[0] - C1P[0]), 2) - np.power((self.A1B[1] - C1P[1]), 2))
-            A1Zn = C1P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A1B[0] - C1P[0]), 2) - np.power((self.A1B[1] - C1P[1]), 2))
+            A1Zp = C1P[2] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A1B[0] - C1P[0]), 2) - np.power((self.A1B[1] - C1P[1]), 2))
+            A1Zn = C1P[2] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A1B[0] - C1P[0]), 2) - np.power((self.A1B[1] - C1P[1]), 2))
 
-            A2Zp = C2P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A2B[0] - C2P[0]), 2) - np.power((self.A2B[1] - C2P[1]), 2))
-            A2Zn = C2P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A2B[0] - C2P[0]), 2) - np.power((self.A2B[1] - C2P[1]), 2))
+            A2Zp = C2P[2] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A2B[0] - C2P[0]), 2) - np.power((self.A2B[1] - C2P[1]), 2))
+            A2Zn = C2P[2] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A2B[0] - C2P[0]), 2) - np.power((self.A2B[1] - C2P[1]), 2))
 
-            A3Zp = C3P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A3B[0] - C3P[0]), 2) - np.power((self.A3B[1] - C3P[1]), 2))
-            A3Zn = C3P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A3B[0] - C3P[0]), 2) - np.power((self.A3B[1] - C3P[1]), 2))
+            A3Zp = C3P[2] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A3B[0] - C3P[0]), 2) - np.power((self.A3B[1] - C3P[1]), 2))
+            A3Zn = C3P[2] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A3B[0] - C3P[0]), 2) - np.power((self.A3B[1] - C3P[1]), 2))
 
-            A4Zp = C4P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A4B[0] - C4P[0]), 2) - np.power((self.A4B[1] - C4P[1]), 2))
-            A4Zn = C4P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A4B[0] - C4P[0]), 2) - np.power((self.A4B[1] - C4P[1]), 2))
+            A4Zp = C4P[2] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A4B[0] - C4P[0]), 2) - np.power((self.A4B[1] - C4P[1]), 2))
+            A4Zn = C4P[2] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A4B[0] - C4P[0]), 2) - np.power((self.A4B[1] - C4P[1]), 2))
 
-            A5Zp = C5P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A5B[0] - C5P[0]), 2) - np.power((self.A5B[1] - C5P[1]), 2))
-            A5Zn = C5P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A5B[0] - C5P[0]), 2) - np.power((self.A5B[1] - C5P[1]), 2))
+            A5Zp = C5P[2] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A5B[0] - C5P[0]), 2) - np.power((self.A5B[1] - C5P[1]), 2))
+            A5Zn = C5P[2] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A5B[0] - C5P[0]), 2) - np.power((self.A5B[1] - C5P[1]), 2))
 
-            A6Zp = C6P[1] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A6B[0] - C6P[0]), 2) - np.power((self.A6B[1] - C6P[1]), 2))
-            A6Zn = C6P[1] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A6B[0] - C6P[0]), 2) - np.power((self.A6B[1] - C6P[1]), 2))
+            A6Zp = C6P[2] + np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A6B[0] - C6P[0]), 2) - np.power((self.A6B[1] - C6P[1]), 2))
+            A6Zn = C6P[2] - np.sqrt(np.power(self.ArmLen, 2) - np.power((self.A6B[0] - C6P[0]), 2) - np.power((self.A6B[1] - C6P[1]), 2))
 
             solutions = [   [A1Zp, A1Zn],
                             [A2Zp, A2Zn],
@@ -233,7 +249,8 @@ class StewartPlatform:
                             [A6Zp, A6Zn]
                             ]
 
-        except:
+        except Exception as e:
+            print("Could not solve inverse kinemetaic solution: {}".format(e))
             return (None, None)
 
         prevActs = [self.A1C, self.A2C, self.A3C, self.A4C, self.A5C, self.A6C]
@@ -243,10 +260,32 @@ class StewartPlatform:
             if (np.abs(solution[0] - prevActs[actNum][2]) <= np.abs(solution[1] - prevActs[actNum][2])):
                 output.append(solution[0])
             else:
-                output.append(solution[0])
+                output.append(solution[1])
 
         # Return the actuator positions and the platform joint positions
         return (tuple(output), (C1P, C2P, C3P, C4P, C5P, C6P))
+
+    def home(self):
+        try:
+            self.ser1.write(self.encodeHeight(0))
+            self.ser2.write(self.encodeHeight(0))
+            self.ser3.write(self.encodeHeight(0))
+            self.ser4.write(self.encodeHeight(0))
+            self.ser5.write(self.encodeHeight(0))
+            self.ser6.write(self.encodeHeight(0))
+        except Exception as e:
+            print("Could not home: {}".format(e))
+
+    def topHome(self):
+        try:
+            self.ser1.write(self.encodeHeight(6))
+            self.ser2.write(self.encodeHeight(6))
+            self.ser3.write(self.encodeHeight(6))
+            self.ser4.write(self.encodeHeight(6))
+            self.ser5.write(self.encodeHeight(6))
+            self.ser6.write(self.encodeHeight(6))
+        except Exception as e:
+            print("Could not home: {}".format(e))
 
 
     def forwardKinematicSolution(self, ActuatorPositions):
@@ -281,11 +320,21 @@ class StewartPlatform:
             self.EndEffectorOrientation = EndEffectorQuaternion
             return True
 
-    def instantHome(self):
+    def instantHome(self, actuate=False):
         '''
         Instantly home the system positions
         '''
-        return self.instantGlobalMove([0, 0, self.HomeHeight], [1, 0, 0, 0])
+        pos = self.instantGlobalMove([0, 0, self.HomeHeight], [1, 0, 0, 0])
+
+        if actuate:
+            self.ser1.write(self.encodeHeight(self.A1C[2]))
+            self.ser2.write(self.encodeHeight(self.A2C[2]))
+            self.ser3.write(self.encodeHeight(self.A3C[2]))
+            self.ser4.write(self.encodeHeight(self.A4C[2]))
+            self.ser5.write(self.encodeHeight(self.A5C[2]))
+            self.ser6.write(self.encodeHeight(self.A6C[2]))
+
+        return pos
 
     def isValidActuatorPositions(self):
         '''
@@ -426,12 +475,41 @@ class StewartPlatform:
         # Plot End Effector
         ax.scatter3D(self.EndEffectorPosition[0], self.EndEffectorPosition[1], self.EndEffectorPosition[2], 'purple', s = 80)
 
+        x_limits = ax.get_xlim3d()
+        y_limits = ax.get_ylim3d()
+        z_limits = ax.get_zlim3d()
+
+        x_range = abs(x_limits[1] - x_limits[0])
+        x_middle = np.mean(x_limits)
+        y_range = abs(y_limits[1] - y_limits[0])
+        y_middle = np.mean(y_limits)
+        z_range = abs(z_limits[1] - z_limits[0])
+        z_middle = np.mean(z_limits)
+
+        # The plot bounding box is a sphere in the sense of the infinity
+        # norm, hence I call half the max range the plot radius.
+        plot_radius = 0.5*max([x_range, y_range, z_range])
+
+        ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+        ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+        ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+
         # Show the plot
         plt.show()
 
         return
 
-    def executeTrajectory(self, Trajectory, show=False):
+    def encodeHeight(self, height):
+        binHeight = int(3400 * height*2)
+
+        position = format(binHeight, "b").zfill(12)
+
+        byte1 = int('1' + position[:6] + '1', 2)
+        byte2 = int('0' + position[6:] + '1', 2)
+
+        return bytearray([byte1, byte2])
+
+    def executeTrajectory(self, Trajectory, show=False, actuate=False):
         '''
         Show a trajectory for the stewart platfrom
         '''
@@ -446,12 +524,33 @@ class StewartPlatform:
             plt.show()
 
         prevTime = 0
-        for row, time in enumerate(Times):
+        for row, timeStamp in enumerate(Times):
+            if actuate:
+                if row == 0:
+                    t1 = timeStamp
+                else:
+                    deltaTime = timeStamp - t1
+                    t1 = timeStamp
+                    time.sleep(deltaTime)
+
+
+            print(row, timeStamp)
             # Update the position
             self.A1C[2], self.A2C[2], self.A3C[2], self.A4C[2], self.A5C[2], self.A6C[2] = ActHeights[row]
             self.C1P, self.C2P, self.C3P, self.C4P, self.C5P, self.C6P = JointPoss[row]
             self.EndEffectorPosition = EEPoss[row]
             self.EndEffectorOrientation = EERots[row]
+
+
+            # Send the actuator trajectories to the MCU's
+            if actuate:
+                self.ser1.write(self.encodeHeight(self.A5C[2]))
+                self.ser2.write(self.encodeHeight(self.A6C[2]))
+                self.ser3.write(self.encodeHeight(self.A1C[2]))
+                self.ser4.write(self.encodeHeight(self.A2C[2]))
+                self.ser5.write(self.encodeHeight(self.A3C[2]))
+                self.ser6.write(self.encodeHeight(self.A4C[2]))
+
 
             if show:
                 plt.cla()
@@ -504,9 +603,9 @@ class StewartPlatform:
                 # Likewise for show
                 if show:
                     plt.draw()
-                    plt.pause(time - prevTime)
+                    plt.pause(timeStamp - prevTime)
 
-                prevTime = time
+                prevTime = timeStamp
 
             # Show the plot
             plt.show()
@@ -526,13 +625,13 @@ class StewartPlatform:
 
 
 def main():
-    BaseAngleOffset = 15                                    #Actuator Angle Offset [deg]
-    BaseRadius = 0.55                                       #Actuator Base Radius [m]
-    ActStroke = 2.5                                         #Actuator Stroke [m]
-    ArmLen = 0.8                                            #Control Arm Length [m]
-    PlatformAngleOffset = 25                                #Control Arm Angle Offset[deg]
-    PlatformRadius = 0.3                                    #Control Arm Platform Radius [m]
-    EndEffectorPositionOffset = np.array([0, 0, 0.5])       #The offset of the beam from the platform [m]
+    BaseAngleOffset = 76.4/2                                ##Actuator Angle Offset [deg]
+    BaseRadius = 269.26 / 2 * 10**-3                        ##Actuator Base Radius [m]
+    ActStroke = 6 * 0.0254                                  ##Actuator Stroke [m]
+    ArmLen = 144 * 10**-3                                   ##Control Arm Length [m]
+    PlatformAngleOffset = 43.58/2                           ##Control Arm Angle Offset[deg]
+    PlatformRadius = 119.63/2 * 10**-3                      ##Control Arm Platform Radius [m]
+    EndEffectorPositionOffset = np.array([0, 0, 0])         ##The offset of the beam from the platform [m]
 
     # Create an instance of the stewart mechanism
     mechanism = StewartPlatform(    BaseAngleOffset,
@@ -545,35 +644,65 @@ def main():
                                 )
 
     mechanism.MaxStepSize = 0.01
-    mechanism.MaxActuatorSpeed = 1
+    mechanism.MaxActuatorSpeed = 0.013368421052538 * 300
 
 
+    #mechanism.plotCurrentPosition()
+
+    preview = True
+    actuate = True
 
 
-    d = 0.2
-    t1 = mechanism.planTrajectory([-d, d, 2.5], [1, 0, 0, 0])
-    t2 = mechanism.planTrajectoryBetweenPoints([-d, d, 2.5], [1, 0, 0, 0], [d, d, 2.5], [1, 0, 0, 0])
-    t3 = mechanism.planTrajectoryBetweenPoints([d, d, 2.5], [1, 0, 0, 0], [d, -d, 2.5], [1, 0, 0, 0])
-    t4 = mechanism.planTrajectoryBetweenPoints([d, -d, 2.5], [1, 0, 0, 0], [-d, -d, 2.5], [1, 0, 0, 0])
-    t5 = mechanism.planTrajectoryBetweenPoints([-d, -d, 2.5], [1, 0, 0, 0], [-d, d, 2.5], [1, 0, 0, 0])
+    d = 0.04
+    h2 = 0.7
+    h1 = 0.6
+    t1 = mechanism.planTrajectory([-d, d, h1], [1, 0, 0, 0])
+    t2 = mechanism.planTrajectoryBetweenPoints([-d, d, h1], [1, 0, 0, 0], [d, d, h2], [1, 0, 0, 0])
+    t3 = mechanism.planTrajectoryBetweenPoints([d, d, h2], [1, 0, 0, 0], [d, -d, h1], [1, 0, 0, 0])
+    t4 = mechanism.planTrajectoryBetweenPoints([d, -d, h1], [1, 0, 0, 0], [-d, -d, h2], [1, 0, 0, 0])
+    t5 = mechanism.planTrajectoryBetweenPoints([-d, -d, h2], [1, 0, 0, 0], [-d, d, h1], [1, 0, 0, 0])
 
-    mechanism.executeTrajectory(t1, show=True)
-    mechanism.executeTrajectory(t2, show=True)
-    mechanism.executeTrajectory(t3, show=True)
-    mechanism.executeTrajectory(t4, show=True)
-    mechanism.executeTrajectory(t5, show=True)
-    mechanism.executeTrajectory(t2, show=True)
-    mechanism.executeTrajectory(t3, show=True)
-    mechanism.executeTrajectory(t4, show=True)
-    mechanism.executeTrajectory(t5, show=True)
-    mechanism.executeTrajectory(t2, show=True)
-    mechanism.executeTrajectory(t3, show=True)
-    mechanism.executeTrajectory(t4, show=True)
-    mechanism.executeTrajectory(t5, show=True)
-    mechanism.executeTrajectory(t2, show=True)
-    mechanism.executeTrajectory(t3, show=True)
-    mechanism.executeTrajectory(t4, show=True)
-    mechanism.executeTrajectory(t5, show=True)
+    mechanism.topHome()
+    time.sleep(5)
+
+    mechanism.executeTrajectory(t1, show=preview, actuate=actuate)
+    time.sleep(3)
+    while True:
+        mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
+        time.sleep(3)
+        mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
+        time.sleep(3)
+        mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
+        time.sleep(3)
+        mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
+        time.sleep(3)
+
+    #mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
+    #time.sleep(3)
+    #mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
+    #time.sleep(3)
+    #mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
+    #time.sleep(3)
+    #mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
+    #time.sleep(3)
+    #mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
+    #time.sleep(3)
+    mechanism.topHome()
+    time.sleep(5)
+    #time.sleep(1)
+    #mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
+    #time.sleep(1)
+    #mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
+    #time.sleep(1)
+    #mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
+    #time.sleep(1)
+    #mechanism.executeTrajectory(t2, show=preview, actuate=actuate)
+    #time.sleep(1)
+    #mechanism.executeTrajectory(t3, show=preview, actuate=actuate)
+    #time.sleep(1)
+    #mechanism.executeTrajectory(t4, show=preview, actuate=actuate)
+    #time.sleep(1)
+    #mechanism.executeTrajectory(t5, show=preview, actuate=actuate)
 
 
 
