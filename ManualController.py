@@ -6,6 +6,13 @@ import time
 class manualController:
     # Function to initialize the controller
     def __init__(self, port1, port2=None, port3=None, port4=None, port5=None, port6=None, serialRate=2000000):
+        self.port1 = port1
+        self.port2 = port2
+        self.port3 = port3
+        self.port4 = port4
+        self.port5 = port5
+        self.port6 = port6
+
         # Set up the serial communication with each of the actuators
         self.ser1 = serial.Serial(port1, serialRate, timeout=1)
 
@@ -33,18 +40,18 @@ class manualController:
 
     # Function to send a height command to each of the actuators
     def setHeight(self, h1, h2=None, h3=None, h4=None, h5=None, h6=None):
-        self.ser1.write(encodeHeight(h1))
+        self.ser1.write(self.encodeHeight(h1))
 
-        if port2 != None:
-            self.ser2.write(encodeHeight(h2))
-        if port3 != None:
-            self.ser3.write(encodeHeight(h3))
-        if port4 != None:
-            self.ser4.write(encodeHeight(h4))
-        if port5 != None:
-            self.ser5.write(encodeHeight(h5))
-        if port6 != None:
-            self.ser6.write(encodeHeight(h6))
+        if self.port2 != None:
+            self.ser2.write(self.encodeHeight(h2))
+        if self.port3 != None:
+            self.ser3.write(self.encodeHeight(h3))
+        if self.port4 != None:
+            self.ser4.write(self.encodeHeight(h4))
+        if self.port5 != None:
+            self.ser5.write(self.encodeHeight(h5))
+        if self.port6 != None:
+            self.ser6.write(self.encodeHeight(h6))
 
     # Function to home the actuators
     def home(self):
